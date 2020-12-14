@@ -1,0 +1,35 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="conten-section">
+    <form method="POST" action="">
+        {{ form.hidden_tag()}}
+          <fieldset class="form-group">
+              <legend class="border-bottom mb-4"> Register API</legend>
+              <div class="form-group">
+                  {{ form.descriptor_url.label(class="form-control-label")}}
+                  {{ form.descriptor_url(class="form-control form-control-lg")}}
+              </div>
+          </fieldset>
+        <div class="form-group">
+            {{ form.submit(class="btn btn-outline-info")}}
+        </div>
+    </form>
+</div>
+{% if api_params %}
+<div>
+    <legend class="mb-4">API Parameters</legend>
+    <table class="table table-striped">
+        <thead>
+            <tr><th scope="col">Key</th><th scope="col"> Value</th><th scope="col"> Title</th><th scope="col">
+                Select field</th></tr>
+        </thead>
+        <tbody>
+            {% for key , value in api_params.get("query").items() %}
+                <tr><td>{{key}}</td><td>{{value.get("value")}}</td><td>{{value.get("title")}}</td><td>
+                    Here Selection form</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock content %}

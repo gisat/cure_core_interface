@@ -1,0 +1,7 @@
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>OpenSearch service error report</title>
+    <entry>
+        <title>OpenSearch request parameters</title>
+        <summary>{{ error }}</summary>
+    </entry>
+</feed>

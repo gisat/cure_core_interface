@@ -1,0 +1,6 @@
+{% extends "layout.html" %}
+{% block content %}
+    {% filter markdown %}
+    {{ markdown }}
+    {% endfilter %}
+{% endblock content %}
