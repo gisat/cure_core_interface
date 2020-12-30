@@ -1,7 +1,7 @@
 from flask import Flask
 from flaskext.markdown import Markdown
 from flask_sqlalchemy import SQLAlchemy
-from ccsi.config import Config
+from ccsi.config import config
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
 
@@ -14,11 +14,11 @@ bcrypt = Bcrypt()
 login_manager = LoginManager()
 login_manager.login_view = 'forms.login'
 
-def create_app(config_class=Config):
+def create_app(config_class=config):
     # initialize app
     app = Flask(__name__)
     Markdown(app)
-    app.config.from_object(Config)
+    app.config.from_object(config)
 
     #database
     db.init_app(app)
@@ -30,7 +30,7 @@ def create_app(config_class=Config):
     from ccsi.main.routes import main
     from ccsi.errors.handlers import errors
     from ccsi.forms.routes import forms
-    from ccsi.search.routes import search
+    from ccsi.app.routes import search
 
     app.register_blueprint(main)
     app.register_blueprint(errors)

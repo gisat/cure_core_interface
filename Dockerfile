@@ -10,6 +10,7 @@ RUN apt update \
     && apt -y install libgeos-dev \
     && apt -y install gdal-bin python3-gdal
 
+RUN apt -y install libexpat1
 
 ENV LANG=C.UTF-8
 

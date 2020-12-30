@@ -1,7 +1,6 @@
+from ccsi.utils import import_from
 from requests import get
 from requests.auth import HTTPBasicAuth
-from flask import abort
-from urllib.parse import urlencode
 from collections import OrderedDict
 
 # TODO: make servicebuilder.registr method, connection to db
@@ -20,8 +19,11 @@ class Connection:
     def create(cls, base_url, type_query, auth, **ignore):
         return Connection(base_url, type_query, auth)
 
-    def send_request(self, query):
-        """send the request"""
+    def send_request(self, query: dict):
+        """
+        sending the request to original service
+        query - dict contain original parameters of service
+        """
         response = self.connection(query)
         if response.status_code != 200:
             return
@@ -29,7 +31,7 @@ class Connection:
 
     @staticmethod
     def _get_auth(auth):
-        if auth.get('type') is None:
+        if auth is None:
             return None
         elif auth.get('type') == 'login':
             return HTTPBasicAuth(auth.get('login'), auth.get('pwd'))
@@ -40,13 +42,9 @@ class Connection:
         return get(self._base_url, params=query)
 
     def _get_query_string(self, query):
-        params = urlencode(OrderedDict(sorted(query.items(), key=lambda t: len(t[0]))))
-        if self._type_query == 'singe_string':
-            if params.startswith('='):
-                params.lstrip('=')
-            return self._base_url + params
-        if self._type_query == 'simple':
-            return self._base_url + params
+        query = OrderedDict(sorted(query.items(), key=lambda t: len(t[0])))
+        params = import_from('ccsi.app.search.service.transform', self._type_query)(query)
+        return self._base_url + params
 
     def connection(self, query):
         url = self._get_query_string(query)

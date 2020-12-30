@@ -29,8 +29,8 @@ class Parameter:
         return self._default
 
     @property
-    def default(self):
-        return self._default
+    def name(self):
+        return self._name
 
     def validate(self, value):
         if not self._isinstance(value):
@@ -38,7 +38,7 @@ class Parameter:
         return True
 
     def _error_msg(self, value):
-        return f'Parameter {self._name} should be {self._error}. Input value is {value}'
+        return f'Parameter {self.name} should be {self._error}. Input value is {value}'
 
     def _isinstance(self, value):
         return isinstance(value, self._param_type)
@@ -158,10 +158,6 @@ class OptionParameter(Parameter):
     def create(cls, name, transform, **kwargs):
         return cls(name=name, transform=transform, param_type='multiple', error='one of', **kwargs)
 
-    @property
-    def default(self):
-        return self._default
-
     def _error_msg(self, value):
         return f'Parameter {self._name} should be {self._error} {",".join(self.default)}. Input values is {value}'
 
@@ -188,6 +184,8 @@ class ServiceParameters:
         return cls(parameters)
 
     def parameter(self, name):
+        if name is None:
+            return None
         return getattr(self, name)
 
     def _create_parameter(self, name, typ, transform, **kwargs):
@@ -196,6 +194,11 @@ class ServiceParameters:
     def parameters(self):
         """return list of service parameters key names"""
         return list(self.__dict__.keys())
+
+    def __iter__(self):
+        for parametr_name in self.parameters():
+            yield getattr(self,parametr_name)
+
 
 
 

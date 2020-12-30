@@ -1,23 +1,63 @@
-from ccsi.config import Config
+from ccsi.config import config
 from lxml.etree import Element, SubElement
-from urllib.parse import urlencode
 from datetime import datetime
 
 
 class OpenSearchResponse:
 
-    # def request_args
-    #
-    # def qurey_link(self, request_args, start_index):
-    #     requestargs =
-    #
-    #     return {'role': 'request', 'searchTerms': requestargs, startPage': start_index}}
+    def __init__(self, request, process_request, totalresults):
+        self.request = request
+        self.process_request = process_request
+        self.totalresults = totalresults
 
+    @property
+    def url(self):
+        return self.request.base_url + '?' + self.encode(self.process_request)
+
+    @property
+    def base_url(self):
+        return self.request.base_url
+
+    @property
+    def maxrecords(self):
+        return int(self.process_request.get('maxrecords'))
+
+    @property
+    def startindex(self):
+        return int(self.process_request.get('startindex'))
+
+    @property
+    def page(self):
+        return int(self.process_request.get('page'))
+
+    @property
+    def first_page(self):
+        return {'startindex': 0, 'page': 0}
+
+    @property
+    def next_page(self):
+        if self.totalresults > self.startindex+self.page*self.maxrecords:
+            return {'startindex': self.startindex+self.maxrecords, 'page':self.page + 1}
+        else:
+            return {'startindex': self.startindex, 'page':self.page}
+
+    @property
+    def last_page(self):
+        return {'startindex': self.totalresults, 'page': self.totalresults // self.maxrecords}
+
+    def encode(self, parameters: dict, delimiter='&'):
+        return delimiter.join([f'{key}={value}' for key, value in parameters.items()])
 
     def nsmap(self):
         """return xml namespaces in for required by lxml"""
-        return {(item.get('prefix') if item.get('prefix') != '' else None): item.get('namespace')
-                for item in Config.XML_NAMESPACES.values()}
+        return {(item.get('prefix') if item.get('prefix') != '' else None): item.get('namespace').get('namespace')
+                for item in config.ENTRY_PARS.values()}
+
+    def create_link_url(self, link_parameter):
+        request = {k: v for k, v in self.process_request.items() if k not in ['startindex', 'page']}
+        request.update(link_parameter)
+        return self.encode(request)
+
 
     @staticmethod
     def create_SubElement(parent, tag, attrib={}, text=None, nsmap=None, **_extra):
@@ -25,63 +65,59 @@ class OpenSearchResponse:
         result.text = text
         return result
 
-    def atom_head(self, request_args, n_entry, url, start_index, maxrecords):
+    def crate_json_links(self):
+        self_link = {"rel": "self", "type": "application/json", "title": "self", "href": self.url},
+        search_link = {"rel": "search", "type": "application/opensearchdescription+xml", "title":
+            "OpenSearch Description Document", "href": f"{self.base_url}/describe.xml"},
+        first_link = {"rel": "first", "type": "application/json",
+                      "title": "first", "href": f"{self.base_url}&{self.create_link_url(self.first_page)}"}
+        next_link = {"rel": "next", "type": "application/json",
+                     "title": "next", "href": f"{self.base_url}&{self.create_link_url(self.next_page)}"}
+        last_link = {"rel": "last", "type": "application/json",
+                     "title": "last", "href": f"{self.base_url}&{self.create_link_url(self.last_page)}"}
+        return [self_link, search_link, first_link, next_link, last_link]
+
+
+    def atom_head(self):
         feed = Element('feed', nsmap=self.nsmap())
         title = self.create_SubElement(feed, 'title', text=f'Copernicus Core Service Interface search results for:'
-                                                           f'{urlencode(request_args)}')
-        subtitle = self.create_SubElement(feed, 'subtitle', text=f'Displaying {n_entry} results')
+                                                           f'{self.encode(self.process_request, delimiter= "; ")}')
+        subtitle = self.create_SubElement(feed, 'subtitle', text=f'Displaying {self.totalresults} results')
         updated = self.create_SubElement(feed, 'updated', text=datetime.now().isoformat())
         author = self.create_SubElement(feed, 'author')
         name = self.create_SubElement(author, 'name', text='Copernicus Core Service Interface')
-        id = self.create_SubElement(feed, 'id', text=url)
-        totalresults = self.create_SubElement(feed, 'totalResults', text=n_entry)
-        startindex = self.create_SubElement(feed, 'startIndex', text=start_index)
-        itemsperpage = self.create_SubElement(feed, 'itemsPerPage', text=maxrecords)
-        query = self.create_SubElement(feed, 'Query', attrib={'role': 'request', 'searchTerms': urlencode(request_args),
-                                                              'startPage': start_index})
+        id = self.create_SubElement(feed, 'id', text=self.url)
+        totalresults = self.create_SubElement(feed, 'totalResults', text=str(self.totalresults))
+        startindex = self.create_SubElement(feed, 'startIndex', text=str(self.startindex))
+        itemsperpage = self.create_SubElement(feed, 'itemsPerPage', text=str(self.maxrecords))
+        query = self.create_SubElement(feed, 'Query', attrib={'role': 'request',
+                                                              'searchTerms': self.encode(self.process_request)})
         search_link = self.create_SubElement(feed, 'link', attrib={'rel': 'search',
                                                                    'type': 'application/opensearchdescription+xml',
-                                                                   'href': 'desxcription.xml'})
-        self_link = self.create_SubElement(feed, 'link', attrib={'rel': 'self',
-                                                                   'type': 'application/atom+xml',
-                                                                   'href': url})
+                                                                   'href': f'{self.base_url}/description.xml'})
+        self_link = self.create_SubElement(feed, 'link', attrib={'rel': 'self', 'type': 'application/atom+xml',
+                                                                 'href': self.url})
+        first_link = self.create_SubElement(feed, 'link', attrib={'rel': 'first', 'type': 'application/atom+xml',
+                                                                  'href': f"{self.base_url}&"
+                                                                          f"{self.create_link_url(self.first_page)}"})
+        next_link = self.create_SubElement(feed, 'link', attrib={'rel': 'next', 'type': 'application/atom+xml',
+                                                                  'href': f"{self.base_url}&"
+                                                                          f"{self.create_link_url(self.next_page)}"})
+        last_link = self.create_SubElement(feed, 'link', attrib={'rel': 'last', 'type': 'application/atom+xml',
+                                                                 'href': f"{self.base_url}&"
+                                                                         f"{self.create_link_url(self.last_page)}"})
         return feed
 
-    def json_head(self, request_args, n_entry, url, start_index, maxrecords):
+    def json_head(self):
         properties = {
-            "id": "79a425b8-ca6d-522a-b8ef-e7b93217b413",
-            "totalResults": 1589664,
-            "exactCount": True if maxrecords >= n_entry else True,
-            "startIndex": start_index,
-            "itemsPerPage": int(maxrecords),
-            "query": request_args,
-            "links": [
-                {
-                    "rel": "self",
-                    "type": "application/json",
-                    "title": "self",
-                    "href": "https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?&productType=GRD&orbitnumber=18"
-                },
-                {
-                    "rel": "search",
-                    "type": "application/opensearchdescription+xml",
-                    "title": "OpenSearch Description Document",
-                    "href": "https://finder.creodias.eu/resto/api/collections/Sentinel1/describe.xml"
-                },
-                {
-                    "rel": "next",
-                    "type": "application/json",
-                    "title": "next",
-                    "href": "https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?&productType=GRD&orbitnumber=18&page=2"
-                },
-                {
-                    "rel": "last",
-                    "type": "application/json",
-                    "title": "last",
-                    "href": "https://finder.creodias.eu/resto/api/collections/Sentinel1/search.json?&productType=GRD&orbitnumber=18&page=79484"
-                }
-            ]
-        }
-        pass
+            "totalResults": self.totalresults,
+            "exactCount": True if self.maxrecords <= self.totalresults else True,
+            "startIndex": self.startindex,
+            "itemsPerPage": self.maxrecords,
+            "query": self.request.args,
+            "links": self.crate_json_links()}
+        return properties
 
-open_search_response = OpenSearchResponse()
+class Description:
+
+    pass
