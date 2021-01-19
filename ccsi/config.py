@@ -28,8 +28,8 @@ class Config:
                       'geo': {'prefix': 'geo', 'namespace': 'http://a9.com/-/opensearch/extensions/geo/1.0/'},
                       'time': {'prefix': 'time', 'namespace': 'http://a9.com/-/opensearch/extensions/time/1.0/'},
                       'param': {'prefix': 'param', 'namespace':  'http://a9.com/-/spec/opensearch/extensions/parameters/1.0/'},
-                      'ccsi': {'prefix': 'param', 'namespace':  'http://spec/ccsi/parameters'},
-                      'eo': {'prefix': 'param', 'namespace':  'http://a9.com/-/opensearch/extensions/eo/1.0/'}}
+                      'ccsi': {'prefix': 'ccsi', 'namespace':  'http://spec/ccsi/parameters'},
+                      'eo': {'prefix': 'eo', 'namespace':  'http://a9.com/-/opensearch/extensions/eo/1.0/'}}
 
     PARAMETERS_DESCRIPTION = {'collection': {'namespace': XML_NAMESPACES.get('ccsi'), 'title': 'Data collection name'},
                               'cataloque': {'namespace': XML_NAMESPACES.get('ccsi'), 'title': 'Name of the data catalogue'},
