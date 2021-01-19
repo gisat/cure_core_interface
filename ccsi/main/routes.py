@@ -15,11 +15,11 @@ def index():
         # convert to HTML
         return render_template('main.html', title='Documentation', markdown=content)
 
-@main.route("/test")
-def test():
-    """Debug"""
-    test = request.args.get('test', None)
-    return render_template('test.html', title='Test', text=test)
+# @main.route("/test")
+# def test():
+#     """Debug"""
+#     test = request.args.get('test', None)
+#     return render_template('test.html', title='Test', text=test)
 
 
 

@@ -41,8 +41,8 @@ class EntryText:
 
     def to_json(self):
         if self.attrib is {}:
-            return {self.name: self.value}
-        return {self.name: self.value,
+            return {self.name: self.text}
+        return {self.name: self.text,
                 'properties': self.attrib}
 
     def to_xml(self):

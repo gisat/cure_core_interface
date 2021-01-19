@@ -1,8 +1,8 @@
 from ccsi.errors.errors import Error
-from ccsi.schema.opensearch import OpenSearchResponse
+from ccsi.app.open_response import OpenSearchResponse
 from lxml import etree
 from copy import deepcopy
-from geojson import FeatureCollection
+from geojson import FeatureCollection, dumps
 
 
 class Query:
@@ -54,7 +54,7 @@ class Query:
     def to_json(self):
         response = OpenSearchResponse(self._request, self.process_request, self.totalresults)
         head = response.json_head()
-        return FeatureCollection(features=[entry. to_json() for entry in self.entries], properties=head)
+        return dumps(FeatureCollection(features=[entry.to_json() for entry in self.entries], properties=head))
 
 
 class Register:

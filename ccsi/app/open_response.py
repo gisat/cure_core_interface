@@ -3,6 +3,12 @@ from lxml.etree import Element, SubElement
 from datetime import datetime
 
 
+def create_SubElement(parent, tag, attrib={}, text=None, nsmap=None, **_extra):
+    result = SubElement(parent, tag, attrib, nsmap, **_extra)
+    result.text = text
+    return result
+
+
 class OpenSearchResponse:
 
     def __init__(self, request, process_request, totalresults):
@@ -58,13 +64,6 @@ class OpenSearchResponse:
         request.update(link_parameter)
         return self.encode(request)
 
-
-    @staticmethod
-    def create_SubElement(parent, tag, attrib={}, text=None, nsmap=None, **_extra):
-        result = SubElement(parent, tag, attrib, nsmap, **_extra)
-        result.text = text
-        return result
-
     def crate_json_links(self):
         self_link = {"rel": "self", "type": "application/json", "title": "self", "href": self.url},
         search_link = {"rel": "search", "type": "application/opensearchdescription+xml", "title":
@@ -80,30 +79,30 @@ class OpenSearchResponse:
 
     def atom_head(self):
         feed = Element('feed', nsmap=self.nsmap())
-        title = self.create_SubElement(feed, 'title', text=f'Copernicus Core Service Interface search results for:'
+        title = create_SubElement(feed, 'title', text=f'Copernicus Core Service Interface search results for:'
                                                            f'{self.encode(self.process_request, delimiter= "; ")}')
-        subtitle = self.create_SubElement(feed, 'subtitle', text=f'Displaying {self.totalresults} results')
-        updated = self.create_SubElement(feed, 'updated', text=datetime.now().isoformat())
-        author = self.create_SubElement(feed, 'author')
-        name = self.create_SubElement(author, 'name', text='Copernicus Core Service Interface')
-        id = self.create_SubElement(feed, 'id', text=self.url)
-        totalresults = self.create_SubElement(feed, 'totalResults', text=str(self.totalresults))
-        startindex = self.create_SubElement(feed, 'startIndex', text=str(self.startindex))
-        itemsperpage = self.create_SubElement(feed, 'itemsPerPage', text=str(self.maxrecords))
-        query = self.create_SubElement(feed, 'Query', attrib={'role': 'request',
+        subtitle = create_SubElement(feed, 'subtitle', text=f'Displaying {self.totalresults} results')
+        updated = create_SubElement(feed, 'updated', text=datetime.now().isoformat())
+        author = create_SubElement(feed, 'author')
+        name = create_SubElement(author, 'name', text='Copernicus Core Service Interface')
+        id = create_SubElement(feed, 'id', text=self.url)
+        totalresults = create_SubElement(feed, 'totalResults', text=str(self.totalresults))
+        startindex = create_SubElement(feed, 'startIndex', text=str(self.startindex))
+        itemsperpage = create_SubElement(feed, 'itemsPerPage', text=str(self.maxrecords))
+        query = create_SubElement(feed, 'Query', attrib={'role': 'request',
                                                               'searchTerms': self.encode(self.process_request)})
-        search_link = self.create_SubElement(feed, 'link', attrib={'rel': 'search',
+        search_link = create_SubElement(feed, 'link', attrib={'rel': 'search',
                                                                    'type': 'application/opensearchdescription+xml',
                                                                    'href': f'{self.base_url}/description.xml'})
-        self_link = self.create_SubElement(feed, 'link', attrib={'rel': 'self', 'type': 'application/atom+xml',
+        self_link = create_SubElement(feed, 'link', attrib={'rel': 'self', 'type': 'application/atom+xml',
                                                                  'href': self.url})
-        first_link = self.create_SubElement(feed, 'link', attrib={'rel': 'first', 'type': 'application/atom+xml',
+        first_link = create_SubElement(feed, 'link', attrib={'rel': 'first', 'type': 'application/atom+xml',
                                                                   'href': f"{self.base_url}&"
                                                                           f"{self.create_link_url(self.first_page)}"})
-        next_link = self.create_SubElement(feed, 'link', attrib={'rel': 'next', 'type': 'application/atom+xml',
+        next_link = create_SubElement(feed, 'link', attrib={'rel': 'next', 'type': 'application/atom+xml',
                                                                   'href': f"{self.base_url}&"
                                                                           f"{self.create_link_url(self.next_page)}"})
-        last_link = self.create_SubElement(feed, 'link', attrib={'rel': 'last', 'type': 'application/atom+xml',
+        last_link = create_SubElement(feed, 'link', attrib={'rel': 'last', 'type': 'application/atom+xml',
                                                                  'href': f"{self.base_url}&"
                                                                          f"{self.create_link_url(self.last_page)}"})
         return feed
@@ -117,7 +116,3 @@ class OpenSearchResponse:
             "query": self.request.args,
             "links": self.crate_json_links()}
         return properties
-
-class Description:
-
-    pass

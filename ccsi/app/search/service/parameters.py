@@ -1,8 +1,10 @@
 from shapely import wkt, errors
 from shapely.geometry import box
 from dateutil.parser import isoparse
+import marshmallow
 import types
 
+# TODO: change marshmallow fileds at wkt, bbox and option parameter
 
 class Parameter:
     """Base class represent parameter type. Take name, type of parameter (str, int etc.), take error message and
@@ -119,6 +121,7 @@ class BBoxParameter(Parameter):
 class WKTParameter(Parameter):
 
     def __init__(self, **kwargs):
+        self.field = marshmallow.fields.String()
         super().__init__(**kwargs)
 
     @classmethod
@@ -197,7 +200,7 @@ class ServiceParameters:
 
     def __iter__(self):
         for parametr_name in self.parameters():
-            yield getattr(self,parametr_name)
+            yield getattr(self, parametr_name)
 
 
 

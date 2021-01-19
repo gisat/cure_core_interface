@@ -5,6 +5,7 @@ from ccsi.app.search.service.services import Service
 from ccsi.app.search.response.parsers import response_parser_builder
 from ccsi.app.search.response.entry import Entry
 from ccsi.app.search.main import Register, RequestProcessor
+from ccsi.app.open_description import DescriptionDocument
 
 
 class Containers:
@@ -27,7 +28,7 @@ class Containers:
         self.register = Register.create(self.services_register, self.parameter_register, self.service_tag_register,
                                         self.default_parameters_register)
         self.request_processor = RequestProcessor.create(self.register)
-
+        self.description_documents = self.create_description_documents()
 
     def get_connection(self, service_name) -> Connection:
         return self.connections.get(service_name)
@@ -92,6 +93,12 @@ class Containers:
                           for parameter_name in entry_parameters.keys()}
             register.update({service_name: Entry.create(properties)})
         return register
+
+    def create_description_documents(self):
+        documents = {service_name: DescriptionDocument.create(config.PARAMETERS_DESCRIPTION, service) for service_name,
+                     service in self.services.items()}
+        documents.update({'base': DescriptionDocument.create(config.PARAMETERS_DESCRIPTION)})
+        return documents
 
 
 app_containers = Containers(config)

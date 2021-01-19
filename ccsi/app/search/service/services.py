@@ -54,6 +54,10 @@ class Service:
         """call service parameter by original name"""
         return self._parameters.parameter(self.mapped.get(name))
 
+    def input_parameters(self):
+        """return dict of input parametes names and coresponding parameters objects"""
+        return {name: self._parameters.parameter(mapped_name) for name, mapped_name in self.mapped.items()}
+
     def __hash__(self):
         return hash(self.service_name)
 

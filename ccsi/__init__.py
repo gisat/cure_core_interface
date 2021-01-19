@@ -14,9 +14,11 @@ bcrypt = Bcrypt()
 login_manager = LoginManager()
 login_manager.login_view = 'forms.login'
 
+
 def create_app(config_class=config):
     # initialize app
     app = Flask(__name__)
+
     Markdown(app)
     app.config.from_object(config)
 
@@ -30,12 +32,27 @@ def create_app(config_class=config):
     from ccsi.main.routes import main
     from ccsi.errors.handlers import errors
     from ccsi.forms.routes import forms
-    from ccsi.app.routes import search
 
+    # blueprint registering
+    # app modules
     app.register_blueprint(main)
     app.register_blueprint(errors)
     app.register_blueprint(forms)
-    app.register_blueprint(search)
+
+    # search api
+    from ccsi.app.routes import AtomFormat, JsonFormat, docs, search_api
+
+    # swagger
+    from ccsi.app.api_spec import spec
+    app.config.update({
+        'APISPEC_SPEC': spec,
+        'APISPEC_SWAGGER_URL': '/swagger/',  # URI to access API Doc JSON
+        'APISPEC_SWAGGER_UI_URL': '/swagger-ui/'  # URI to access UI of API Doc
+    })
+
+    with app.app_context():
+        search_api.init_app(app)
+        docs.init_app(app)
 
     @app.before_first_request
     def create_tables():

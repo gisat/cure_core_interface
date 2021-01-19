@@ -2,8 +2,11 @@ from ccsi.app.search.service.parameters import StringParameter, IntParameter, BB
     FloatParameter, DateTimeParameter, OptionParameter
 from ccsi.app.search.service.transform import simple, check_min_value
 
+# TODO: transfer config into DB, generation and registration of parameters
 
 class Config:
+
+    VERSION = '0.8'
     # registred collection tags, used to identified service endpoint
     COLLECTION_TAGS = ['clms', 'sentinel1', 'sentinel2']
 
@@ -17,14 +20,41 @@ class Config:
                                   'scihub': ['scihub'],
                                   'creodias': ['creodias_sentinel1']}}
 
+    XML_NAMESPACES = {'atom': {'prefix': '', 'namespace': 'http://www.w3.org/2005/Atom'},
+                      'dc': {'prefix': 'dc', 'namespace': "http://purl.org/dc/elements/1.1/"},
+                      'gml': {'prefix': 'gml', 'namespace': 'http://www.opengis.net/gml'},
+                      'opensearch': {'prefix': 'opensearch', 'namespace': 'http://a9.com/-/spec/opensearch/1.1/'},
+                      'dias': {'prefix': 'DIAS', 'namespace': 'http://tas/DIAS'},
+                      'geo': {'prefix': 'geo', 'namespace': 'http://a9.com/-/opensearch/extensions/geo/1.0/'},
+                      'time': {'prefix': 'time', 'namespace': 'http://a9.com/-/opensearch/extensions/time/1.0/'},
+                      'param': {'prefix': 'param', 'namespace':  'http://a9.com/-/spec/opensearch/extensions/parameters/1.0/'},
+                      'ccsi': {'prefix': 'param', 'namespace':  'http://spec/ccsi/parameters'},
+                      'eo': {'prefix': 'param', 'namespace':  'http://a9.com/-/opensearch/extensions/eo/1.0/'}}
+
+    PARAMETERS_DESCRIPTION = {'collection': {'namespace': XML_NAMESPACES.get('ccsi'), 'title': 'Data collection name'},
+                              'cataloque': {'namespace': XML_NAMESPACES.get('ccsi'), 'title': 'Name of the data catalogue'},
+                              'searchterm': {'namespace': XML_NAMESPACES.get('opensearch'), 'title': 'General queryable parameters'},
+                              'producttype': {'namespace': XML_NAMESPACES.get('eo'), 'title': 'Product type'},
+                              'productid': {'namespace': XML_NAMESPACES.get('ccsi'), 'title': 'Cataloque specific id of the product'},
+                              'maxrecords': {'namespace': XML_NAMESPACES.get('opensearch'), 'title': 'Number of records per page'},
+                              'startindex': {'namespace': XML_NAMESPACES.get('opensearch'), 'title': 'Start index o results'},
+                              'page': {'namespace': XML_NAMESPACES.get('opensearch'), 'title': 'Page of results; default 0'},
+                              'bbox': {'namespace': XML_NAMESPACES.get('geo'), 'title': "Region of Interest defined by 'west, south, east, north' coordinates of longitude, latitude, in decimal degrees (EPSG:4326)"},
+                              'geometry': {'namespace': XML_NAMESPACES.get('geo'), 'title': "Region of Interest defined in Well Known Text standard (WKT) with coordinates in decimal degrees (EPSG:4326)"},
+                              'lat': {'namespace': XML_NAMESPACES.get('geo'), 'title': "Longitude expressed in decimal degrees (EPSG:4326) - have to be used with geo:lat and geo:radius"},
+                              'lon': {'namespace': XML_NAMESPACES.get('geo'), 'title': "Longitude expressed in decimal degrees (EPSG:4326) - have to be used with geo:lon and geo:radius"},
+                              'radius': {'namespace': XML_NAMESPACES.get('geo'), 'title': "Expressed in meters - should be used with geo:lon and geo:lat"},
+                              'start': {'namespace': XML_NAMESPACES.get('time'), 'title': 'Search interval start time'},
+                              'end': {'namespace': XML_NAMESPACES.get('time'), 'title': 'Search interval end time'},
+                              'custom:title': {'namespace': XML_NAMESPACES.get('ccsi'), 'title': 'Custom parameter availible of certaint catalogues'},
+                              'custom:name': {'namespace': XML_NAMESPACES.get('ccsi'), 'title': 'Custom parameter availible of certaint catalogues'},
+                              'custom:orbitdirection': {'namespace': XML_NAMESPACES.get('ccsi'), 'title': 'Custom parameter availible of certaint catalogues'}
+                              }
 
     # CCSI base api parameters
-    SERVICE_PARAMETERS = {'base': [{'name': 'collection', 'typ': OptionParameter, 'transform': simple, 'default':
-                                    COLLECTION_TAGS},
-                                   {'name': 'catalogue', 'typ': OptionParameter, 'transform': simple, 'default':
-                                    CATALOGUES_TAGS},
+    SERVICE_PARAMETERS = {'base': [{'name': 'collection', 'typ': OptionParameter, 'transform': simple, 'default': COLLECTION_TAGS},
+                                   {'name': 'catalogue', 'typ': OptionParameter, 'transform': simple, 'default': CATALOGUES_TAGS},
                                    {'name': 'searchterm', 'typ': StringParameter, 'transform': simple},
-                                   {'name': 'product', 'typ': StringParameter, 'transform': simple},
                                    {'name': 'producttype', 'typ': StringParameter, 'transform': simple},
                                    {'name': 'productid', 'typ': StringParameter, 'transform': simple},
                                    {'name': 'maxrecords', 'typ': IntParameter, 'transform': simple, 'default': ['50']},
@@ -35,10 +65,8 @@ class Config:
                                    {'name': 'lat', 'typ': FloatParameter, 'transform': simple},
                                    {'name': 'lon', 'typ': FloatParameter, 'transform': simple},
                                    {'name': 'radius', 'typ': FloatParameter, 'transform': simple},
-                                   {'name': 'relation', 'typ': StringParameter, 'transform': simple},
                                    {'name': 'start', 'typ': DateTimeParameter, 'transform': simple},
-                                   {'name': 'end', 'typ': DateTimeParameter, 'transform': simple},
-                                   {'name': 'sortorder', 'typ': StringParameter, 'transform': simple}],
+                                   {'name': 'end', 'typ': DateTimeParameter, 'transform': simple}],
                           'mundi_clms': [{'name': 'g', 'typ': StringParameter, 'transform': simple},
                                          {'name': 'maxRecords', 'typ': IntParameter, 'transform': simple},
                                          {'name': 'uid', 'typ': StringParameter, 'transform': simple},
@@ -81,13 +109,6 @@ class Config:
                                           'maxrecords': 'maxRecords',
                                           'startindex': 'index',
                                           'productid': 'identifier'}}
-
-    XML_NAMESPACES = {'atom': {'prefix': '', 'namespace': 'http://www.w3.org/2005/Atom'},
-                      'dc': {'prefix': 'dc', 'namespace': "http://purl.org/dc/elements/1.1/"},
-                      'gml': {'prefix': 'gml', 'namespace': 'http://www.opengis.net/gml'},
-                      'opensearch': {'prefix': 'opensearch', 'namespace': 'http://a9.com/-/spec/opensearch/1.1/'},
-                      'dias': {'prefix': 'DIAS', 'namespace': 'http://tas/DIAS'}}
-
 
     ENTRY_MAPED_PAIRS = {'mundi_clms': {'id': {'func': 'text',
                                                'properties': ['id', XML_NAMESPACES.get('atom')]},
