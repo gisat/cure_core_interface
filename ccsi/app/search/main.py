@@ -7,18 +7,18 @@ from geojson import FeatureCollection, dumps
 
 class Query:
 
-    def __init__(self, request, services):
+    def __init__(self, request, process_request, services):
         self._request = request
-        self.process_request = self._lower(self._request.args)
+        self.process_request = self._lower(process_request)
         self.services = services
         self.error = {}
         self.responses = {}
         self.entries = []
 
     @classmethod
-    def create(cls, request, services):
+    def create(cls, request, process_request, services):
         """create from flask request variable"""
-        return cls(request, services)
+        return cls(request, process_request, services)
 
     @property
     def valid(self):
@@ -96,8 +96,8 @@ class RequestProcessor:
     def register(self):
         return self._register
 
-    def build_query(self, request):
-        query = Query.create(request, self.register.get_service_registr())
+    def build_query(self, request, process_request):
+        query = Query.create(request, process_request, self.register.get_service_registr())
         for process in self.PROCESSES:
             getattr(self, process)(query)
             if query.valid is False:
