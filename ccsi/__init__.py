@@ -40,7 +40,7 @@ def create_app(config_class=config):
     app.register_blueprint(forms)
 
     # search api
-    from ccsi.app.routes import AtomFormat, JsonFormat, docs, search_api
+    from ccsi.app.routes import docs, search_api
 
     # swagger
     from ccsi.app.api_spec import spec

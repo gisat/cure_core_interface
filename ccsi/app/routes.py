@@ -1,9 +1,10 @@
 from flask import Response
 from flask import request as request
-from flask_apispec import marshal_with, use_kwargs, doc
-from flask_apispec.views import MethodResource
+
 from flask_restful import Resource, Api
 from flask_apispec.extension import FlaskApiSpec
+from flask_apispec import marshal_with, use_kwargs, doc
+from flask_apispec.views import MethodResource
 from ccsi.containers import app_containers
 from ccsi.app.api_schema import api_schemas
 
@@ -13,86 +14,124 @@ search_api = Api()
 docs = FlaskApiSpec()
 
 
-@doc(description='Global endpoint to all registred resources', tags=['Json'])
-@use_kwargs(api_schemas.get('base'), location=('json'))
-class JsonFormat(MethodResource, Resource):
+class AtomEndpoint:
+
+    def data_endpoint_url(self):
+        """generate endpoint url. If it is 'base' service, service name is not included in url"""
+        if self.service_name == 'base':
+            return '/atom/search'.lower()
+        return f'/{self.service_name}/atom/search'.lower()
+
     def get(self):
+        if self.catalogue:
+            request.args['cataloque'] = self.catalogue
+        if self.collection:
+            request.args['collection'] = self.collection
         query = app_containers.request_processor.build_query(request)
         if query.valid:
             query.send_request()
         if query.valid:
-            response = Response(query.to_json(), mimetype='application/json',
-                                content_type='application/json; charset=utf-8')
-            return response
+            return Response(query.to_xml(), mimetype='application/xml', content_type='text/xml; charset=utf-8')
 
-@doc(description='Global endpoint to all registred resources', tags=['Atom'])
-@use_kwargs(api_schemas.get('base'), location=('json'))
-class AtomFormat(MethodResource, Resource):
+
+class JsonEndpoint:
+
+    def data_endpoint_url(self):
+        """generate endpoint url. If it is 'base' service, service name is not included in url"""
+        if self.service_name == 'base':
+            return '/json/search'.lower()
+        return f'/{self.service_name}/json/search'.lower()
+
     def get(self):
+        if self.catalogue:
+            request.args['cataloque'] = self.catalogue
+        if self.collection:
+            request.args['collection'] = self.collection
         query = app_containers.request_processor.build_query(request)
         if query.valid:
             query.send_request()
         if query.valid:
-            response = Response(query.to_xml(), mimetype='application/xml', content_type='text/xml; charset=utf-8')
-            return response
+            return Response(query.to_json(), mimetype='application/json', content_type='application/json; charset=utf-8')
 
-class DescriptionAtomFormat(MethodResource, Resource):
-    ENDPOINT = '/atom/search/description.xml'
+
+class AtomDescription:
+
+    def data_endpoint_url(self):
+        """generate endpoint url. If it is 'base' service, service name is not included in url"""
+        if self.service_name == 'base':
+            return '/atom/search/description.xml'.lower()
+        return f'/{self.service_name}/atom/search/description.xml'.lower()
+
     def get(self):
-        mimetype = 'application/xml'
-        description = app_containers.description_documents.get('base')
-        response = Response(description.document(DescriptionAtomFormat.ENDPOINT, mimetype),
-                            mimetype=mimetype, content_type='text/xml; charset=utf-8')
-        return response
+        return Response(self.description.document(self.data_endpoint_url(), 'application/xml'),
+                        mimetype='application/xml', content_type='text/xml; charset=utf-8')
 
-class DescriptionJsonFormat(MethodResource, Resource):
-    ENDPOINT = '/json/search/description.xml'
+
+class JsonDescription:
+
+    def data_endpoint_url(self):
+        """generate endpoint url. If it is 'base' service, service name is not included in url"""
+        if self.service_name == 'base':
+            return '/json/search/description.xml'.lower()
+        return f'/{self.service_name}/json/search/description.xml'.lower()
+
     def get(self):
-        mimetype = 'application/xml'
-        description = app_containers.description_documents.get('base')
-        response = Response(description.document(DescriptionAtomFormat.ENDPOINT, mimetype),
-                            mimetype=mimetype, content_type='text/xml; charset=utf-8')
-        return response
+        return Response(self.description.document(self.data_endpoint_url(), 'application/json'),
+                        mimetype='application/xml', content_type='text/xml; charset=utf-8')
 
-@doc(description='Endpoint to acces Mundi CLMS', tags=['Atom'])
-@use_kwargs(api_schemas.get('mundi_clms'), location=('json'))
-class AtomMundiClms(MethodResource, Resource):
-    def get(self):
-        request.args['cataloque'] = 'mundi'
-        request.args['collection'] = 'clms'
-        query = app_containers.request_processor.build_query(request)
-        if query.valid:
-            query.send_request()
-        if query.valid:
-            response = Response(query.to_xml(), mimetype='application/xml', content_type='text/xml; charset=utf-8')
-            return response
 
-class MundiClmsDescriptionAtomFormat(MethodResource, Resource):
-    ENDPOINT = '/mundiclms/atom/search/description.xml'
-    def get(self):
-        mimetype = 'application/xml'
-        description = app_containers.description_documents.get('mundi_clms')
-        response = Response(description.document(DescriptionAtomFormat.ENDPOINT, mimetype),
-                            mimetype=mimetype, content_type='text/xml; charset=utf-8')
-        return response
+class DescriptionFactory:
 
-# instantiace of reource classes
-json_format = JsonFormat()
-atom_format = AtomFormat()
-atommundiclms=AtomMundiClms()
+    @staticmethod
+    def create(service_name, format, **ignore):
+        description = app_containers.description_documents.get(service_name)
+        cls_props = {'service_name': service_name,
+                     'description': description}
+        if format == 'json':
+            cls_name = f'desjson{service_name}'.lower()
+            return type(cls_name, (MethodResource, Resource, JsonDescription), cls_props)
+        elif format == 'atom':
+            cls_name = f'desatom{service_name}'.lower()
+            return type(cls_name, (MethodResource, Resource, AtomDescription), cls_props)
 
-# registration of api
-search_api.add_resource(json_format, '/json/search', endpoint=json_format.__class__.__name__.lower())
-search_api.add_resource(atom_format, '/atom/search', endpoint=atom_format.__class__.__name__.lower())
-search_api.add_resource(atommundiclms, '/mundiclms/atom/search', endpoint=atommundiclms.__class__.__name__.lower())
 
-search_api.add_resource(DescriptionAtomFormat, DescriptionAtomFormat.ENDPOINT, endpoint=DescriptionAtomFormat.__name__.lower())
-search_api.add_resource(DescriptionJsonFormat, DescriptionJsonFormat.ENDPOINT, endpoint=DescriptionJsonFormat.__name__.lower())
-search_api.add_resource(MundiClmsDescriptionAtomFormat, MundiClmsDescriptionAtomFormat.ENDPOINT,
-                        endpoint=MundiClmsDescriptionAtomFormat.__name__.lower())
+class DataEndpointFactory:
 
-docs.register(atom_format.__class__, endpoint=atom_format.__class__.__name__.lower())
-docs.register(json_format.__class__, endpoint=json_format.__class__.__name__.lower())
-docs.register(atommundiclms.__class__, endpoint=atommundiclms.__class__.__name__.lower())
+    @staticmethod
+    def create(service_name, format,  collection=None, catalogue=None, **ignore):
+        cls_props = {'service_name': service_name,
+                     'collection': collection,
+                     'catalogue': catalogue}
+        if format == 'json':
+            cls_name = f'json{service_name}'.lower()
+            return type(cls_name, (MethodResource, Resource, JsonEndpoint), cls_props)
+        elif format == 'atom':
+            cls_name = f'atom{service_name}'.lower()
+            return type(cls_name, (MethodResource, Resource, AtomEndpoint), cls_props)
 
+
+class SearchEndpoints:
+
+    @staticmethod
+    def create(properties):
+        for format in ['json', 'atom']:
+            Endpoint = DataEndpointFactory.create(**properties, format=format)
+            doc_decorator = doc(description='General endpoint to access all registred datasets', tags=['Atom'])
+            doc_use_kwargs = use_kwargs(api_schemas.get('base'), location=('json'))
+            Endpoint = doc_decorator(Endpoint)
+            Endpoint = doc_use_kwargs(Endpoint)
+            endpoint = Endpoint()
+
+            description = DescriptionFactory.create(**properties, format=format)()
+
+            search_api.add_resource(endpoint, endpoint.data_endpoint_url(), endpoint=endpoint.__class__.__name__)
+            search_api.add_resource(description, description.data_endpoint_url(), endpoint=description.__class__.__name__)
+            docs.register(endpoint.__class__, endpoint=endpoint.__class__.__name__.lower())
+
+
+properties= {'service_name': 'base',
+             'collection': None,
+             'catalogue': None}
+
+SearchEndpoints.create(properties)
 

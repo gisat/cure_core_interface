@@ -1,5 +1,4 @@
 from lxml.etree import Element, SubElement, tostring
-from urllib.parse import urlencode
 
 
 class DescriptionDocument:
@@ -66,12 +65,15 @@ class DescriptionDocument:
             self.create_SubElement(feed, 'Parameter', attrib=attrib, nsmap={'param': 'http://a9.com/-/spec/opensearch/extensions/parameters/1.0/'})
         return feed
 
+    def join_params(self, params):
+        return '&'.join([f'{key}={value}' for key, value in params.items()])
+
     def get_url(self, feed, url, type):
         url_params = {attrib.get('name'): f"{{{attrib.get('value')}?}}" for attrib in self._get_params_attrib()}
         attrib={}
         attrib['type'] = type
         attrib['rel'] = 'result'
-        attrib['template'] = f'{url}?{urlencode(url_params)}'
+        attrib['template'] = f'{url}?{self.join_params(url_params)}'
         self.create_SubElement(feed, 'Url', attrib=attrib)
         return feed
 
