@@ -6,6 +6,7 @@ class Service:
         self.connection = connection
         self.service_name = service_name
         self.response_parser = response_parser
+        self.validate_service()
 
     @classmethod
     def create(cls, service_name, parameters, mapped, connection, response_parser):
@@ -63,3 +64,10 @@ class Service:
 
     def __eq__(self, other):
         return (isinstance(other, self.__class__) and self.__hash__() == other.__hash__())
+
+    def validate_service(self):
+        for name, mapped_name in self.mapped.items():
+            try:
+                self._parameters.parameter(mapped_name)
+            except AttributeError:
+                raise AttributeError(f'Parameter name {mapped_name} did not find in service {self.service_name} parameters')

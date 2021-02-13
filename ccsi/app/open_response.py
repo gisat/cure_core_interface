@@ -11,18 +11,15 @@ def create_SubElement(parent, tag, attrib={}, text=None, nsmap=None, **_extra):
 
 class OpenSearchResponse:
 
-    def __init__(self, request, process_request, totalresults):
-        self.request = request
+    def __init__(self, base_url, original_args, process_request, totalresults):
+        self.base_url = base_url
+        self.original_args = original_args
         self.process_request = process_request
         self.totalresults = totalresults
 
     @property
     def url(self):
-        return self.request.base_url + '?' + self.encode(self.process_request)
-
-    @property
-    def base_url(self):
-        return self.request.base_url
+        return self.base_url + '?' + self.encode(self.process_request)
 
     @property
     def maxrecords(self):
@@ -113,6 +110,6 @@ class OpenSearchResponse:
             "exactCount": True if self.maxrecords <= self.totalresults else True,
             "startIndex": self.startindex,
             "itemsPerPage": self.maxrecords,
-            "query": self.request.args,
+            "query": self.original_args,
             "links": self.crate_json_links()}
         return properties

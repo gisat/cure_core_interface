@@ -18,6 +18,9 @@
         <title>Cure Core Service Interface</title>
     {% endif %}
 
+    <!-- swagger    -->
+    <meta charset="UTF-8">
+    <link href="{{ url_for('flask-apispec.static', filename='swagger-ui.css') }}" rel="stylesheet" type="text/css"/>
 
 </head>
 <body>
@@ -30,12 +33,11 @@
                 </button>
                 <div class="collapse navbar-collapse" id="navbarToggle">
                     <div class="navbar-nav mr-auto">
-                        <a class="nav-item nav-link" href="{{url_for('main.index')}}">Documentation</a>
-
-                            <a class="nav-item nav-link" href="{{ url_for('forms.api_reg') }}">Register API</a>
+                        <a class="nav-item nav-link" href="{{ url_for('main.index') }}">Documentation</a>
+                        <a class="nav-item nav-link" href="{{ url_for('main.custom_swagger') }}">Swagger</a>
+                        <a class="nav-item nav-link" href="{{ url_for('forms.api_reg') }}">Register API</a>
 
                     </div>
-                    <!-- Navbar Right Side -->
                     <div class="navbar-nav">
                         {% if current_user.is_authenticated %}
                             <a class="nav-item nav-link"  href="{{url_for('forms.logout')}}">Logout ({{ current_user.username }})</a>

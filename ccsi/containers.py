@@ -29,6 +29,7 @@ class Containers:
                                         self.default_parameters_register)
         self.request_processor = RequestProcessor.create(self.register)
         self.description_documents = self.create_description_documents()
+        # endpoints creation
 
     def get_connection(self, service_name) -> Connection:
         return self.connections.get(service_name)

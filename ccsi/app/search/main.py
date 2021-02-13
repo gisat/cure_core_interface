@@ -7,18 +7,19 @@ from geojson import FeatureCollection, dumps
 
 class Query:
 
-    def __init__(self, request, process_request, services):
-        self._request = request
-        self.process_request = self._lower(process_request)
+    def __init__(self,  original_args, process_args, base_url, services):
+        self.original_args = original_args
+        self.process_args = self._lower(process_args)
+        self.base_url = base_url
         self.services = services
         self.error = {}
         self.responses = {}
         self.entries = []
 
     @classmethod
-    def create(cls, request, process_request, services):
+    def create(cls,  original_args, process_args, base_url, services):
         """create from flask request variable"""
-        return cls(request, process_request, services)
+        return cls(original_args, process_args, base_url, services)
 
     @property
     def valid(self):
@@ -33,7 +34,7 @@ class Query:
     def send_request(self):
         if self.valid:
             for service in self.services:
-                output = service.send_request(self.process_request)
+                output = service.send_request(self.process_args)
                 if isinstance(output, dict):
                     self.error.update(output)
                 else:
@@ -45,16 +46,16 @@ class Query:
         return {key.lower(): value.lower() for key, value in dictionary.items()}
 
     def to_xml(self):
-        response = OpenSearchResponse(self._request, self.process_request, self.totalresults)
+        response = OpenSearchResponse(self.base_url, self.original_args, self.process_args, self.totalresults)
         feed = response.atom_head()
         for entry in self.entries:
             feed.append(entry.to_xml())
         return etree.tostring(feed, pretty_print=True).decode("utf-8")
 
     def to_json(self):
-        response = OpenSearchResponse(self._request, self.process_request, self.totalresults)
+        response = OpenSearchResponse(self.base_url, self.original_args, self.process_args, self.totalresults)
         head = response.json_head()
-        return dumps(FeatureCollection(features=[entry.to_json() for entry in self.entries], properties=head))
+        return dumps(FeatureCollection(features=[entry.to_json() for entry in self.entries], properties=head), indent=4)
 
 
 class Register:
@@ -96,8 +97,8 @@ class RequestProcessor:
     def register(self):
         return self._register
 
-    def build_query(self, request, process_request):
-        query = Query.create(request, process_request, self.register.get_service_registr())
+    def build_query(self,  original_args, process_args, base_url) -> Query:
+        query = Query.create(original_args, process_args, base_url, self.register.get_service_registr())
         for process in self.PROCESSES:
             getattr(self, process)(query)
             if query.valid is False:
@@ -108,7 +109,7 @@ class RequestProcessor:
         """provide selection of services by tags"""
         for parameter_name in self.register.service_tag_register.keys():
             services = query.services
-            tags = query.process_request.get(parameter_name)
+            tags = query.process_args.get(parameter_name)
             if tags.find(',') != -1:
                 tag_services = {service for tag in tags.split(',') for service in
                                 self.register.service_tag_register[parameter_name][tag]}
@@ -119,7 +120,7 @@ class RequestProcessor:
 
     def find_services_by_parameter(self, query: Query):
         """provide selection of services by request parameter ans validate them"""
-        for parameter_name, value in query.process_request.items():
+        for parameter_name, value in query.process_args.items():
             services = query.services.copy()
             for service in services:
                 if parameter_name not in self.register.default_parameters_register.keys():
@@ -133,13 +134,13 @@ class RequestProcessor:
     def check_default(self, query: Query):
         """check if requset has default parameters and set their value """
         for parameter_name, value in self.register.default_parameters_register.items():
-            if query.process_request.get(parameter_name) is None:
-                query.process_request.update({parameter_name: ','.join(value)})
+            if query.process_args.get(parameter_name) is None:
+                query.process_args.update({parameter_name: ','.join(value)})
         return query
 
     def check_request_key(self, query: Query):
         """check if request has all valid keys """
-        for parameter_name in query.process_request.keys():
+        for parameter_name in query.process_args.keys():
             if ((self.register.parameter_register.get(parameter_name) is None) and
                     (parameter_name not in self.register.service_tag_register.keys())):
                 query.error.update({'invalid parameter': Error.invalid_parameter([parameter_name])})

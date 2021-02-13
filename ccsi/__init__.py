@@ -1,9 +1,11 @@
 from flask import Flask
 from flaskext.markdown import Markdown
 from flask_sqlalchemy import SQLAlchemy
-from ccsi.config import config
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
+from ccsi.config import config
+from ccsi.app.routes import SearchEndpointsFactory
+
 
 
 #extension
@@ -13,6 +15,9 @@ bcrypt = Bcrypt()
 
 login_manager = LoginManager()
 login_manager.login_view = 'forms.login'
+
+def create_endpoints():
+    SearchEndpointsFactory.create(config.ENDPOINTS)
 
 
 def create_app(config_class=config):
@@ -57,5 +62,6 @@ def create_app(config_class=config):
     @app.before_first_request
     def create_tables():
         db.create_all()
+
 
     return app
