@@ -1,5 +1,5 @@
 from lxml.etree import Element, SubElement, tostring
-
+from ccsi.config import XML_NAMESPACES
 
 class DescriptionDocument:
     TAIL = {'SyndicationRight': 'open',
@@ -28,22 +28,15 @@ class DescriptionDocument:
         else:
             return self.description
 
-    def get_namespaces(self):
+    def nsmap(self):
         """return xml namespaces in for required by lxml"""
-        namspace = {}
-        for properties in self.get_params().values():
-            namspace.update(self._nsmap(**properties))
-        return namspace
-
-    @staticmethod
-    def _nsmap(namespace, **ignore):
-        return {namespace.get('prefix'): namespace.get('namespace')}
+        return {prefix: ns for namespace in XML_NAMESPACES.values() for prefix, ns in namespace.items()}
 
     def get_head(self):
-        feed = Element('OpenSearchDescription', nsmap=self.get_namespaces())
+        feed = Element('OpenSearchDescription', nsmap=self.nsmap())
         self.create_SubElement(feed, 'ShortName', text=f'CCSI')
         self.create_SubElement(feed, 'LongName', text=f'Copernicus Core Service Interface')
-        self.create_SubElement(feed, 'Description', text=f'OpenSearch description documentthat describes how '
+        self.create_SubElement(feed, 'Description', text=f'OpenSearch description document that describes how '
                                                                   f'to query data provided this endpoint')
         self.create_SubElement(feed, 'Contact', text='michal.opletal@gisat.cz')
         return feed
@@ -52,7 +45,7 @@ class DescriptionDocument:
     def _crt_param_attrb(name, namespace, title):
         attrib = {}
         attrib['name'] = name
-        attrib['value'] = f"{namespace.get('prefix')}:{name}"
+        attrib['value'] = f"{list(namespace.keys())[0]}:{name}"
         attrib['title']= title
         return attrib
 

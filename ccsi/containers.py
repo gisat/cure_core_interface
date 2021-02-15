@@ -2,8 +2,8 @@ from ccsi.config import config
 from ccsi.app.search.service.connection import Connection
 from ccsi.app.search.service.parameters import ServiceParameters
 from ccsi.app.search.service.services import Service
-from ccsi.app.search.response.parsers import response_parser_builder
-from ccsi.app.search.response.entry import Entry
+from ccsi.app.search.response.parsers import response_parser_factory, parser_setting_factory
+from ccsi.app.search.response.entry import entry_factory
 from ccsi.app.search.main import Register, RequestProcessor
 from ccsi.app.open_description import DescriptionDocument
 
@@ -11,20 +11,26 @@ from ccsi.app.open_description import DescriptionDocument
 class Containers:
 
     def __init__(self, config):
-        self.connections = {service_name: Connection.create(**config.CONNECTION_.get(service_name)) for service_name in
-                            config.SERVICES_}
-        self.entry_register = self.create_entry_register()
-        self.response_parsers = {service_name: response_parser_builder.build(self.entry_register.get(service_name),
-                                 **config.RESPONSE_PARSERS_.get(service_name)) for service_name in config.SERVICES_}
+        self.connections = {service_name: Connection.create(**config.CONNECTION.get(service_name)) for service_name in
+                            config.SERVICES}
+        self.entry_register = {service_name: entry_factory.create(config.ENTRY_MAPPED_PAIRS.get(service_name))
+                               for service_name in config.SERVICES}
+        self.parser_setting_register = {service_name: parser_setting_factory.create(config.ENTRY_MAPPED_PAIRS.get(service_name))
+                                        for service_name in config.SERVICES}
+        self.response_parsers = {service_name: response_parser_factory.create(service_name,
+                                                                              self.entry_register.get(service_name),
+                                                                              self.parser_setting_register.get(service_name),
+                                                                              **config.RESPONSE_PARSER.get(service_name))
+                                 for service_name in config.SERVICES}
         self.service_parameters = {service_name:  ServiceParameters.create(config.SERVICE_PARAMETERS.get(service_name))
                                    for service_name in config.SERVICE_PARAMETERS.keys()}
-        self.mapped_pairs = config.MAPED_PAIRS
+        self.mapped_pairs = config.MAPPED_PAIRS
         self.services = {service_name: self.service_factory(service_name) for
-                         service_name in config.SERVICES_}
+                         service_name in config.SERVICES}
         self.parameter_register = self.create_parameter_register()
         self.service_tag_register = self.create_service_tag_register(config.SERVICE_TAGS)
         self.default_parameters_register = self.create_default_parameters_register()
-        self.services_register = {self.get_service(service_name)for service_name in config.SERVICES_}
+        self.services_register = {self.get_service(service_name)for service_name in config.SERVICES}
         self.register = Register.create(self.services_register, self.parameter_register, self.service_tag_register,
                                         self.default_parameters_register)
         self.request_processor = RequestProcessor.create(self.register)
@@ -46,7 +52,7 @@ class Containers:
     def get_service(self, service_name) -> Service:
         return self.services.get(service_name)
 
-    def get_parameter_register(self, parameter_name) -> list:
+    def get_parameter_register(self, parameter_name: str) -> list:
         return self.parameter_register.get(parameter_name)
 
     def get_service_tag_register(self, parameter_name) -> dict:
@@ -86,20 +92,10 @@ class Containers:
         return {parameter.name: parameter.default for parameter in self.get_service_parameters('base') if
                 parameter.default is not None}
 
-    @staticmethod
-    def create_entry_register():
-        register = {}
-        for service_name, entry_parameters in config.ENTRY_MAPED_PAIRS.items():
-            properties = {parameter_name: config.ENTRY_PARS.get(parameter_name)
-                          for parameter_name in entry_parameters.keys()}
-            register.update({service_name: Entry.create(properties)})
-        return register
-
     def create_description_documents(self):
         documents = {service_name: DescriptionDocument.create(config.PARAMETERS_DESCRIPTION, service) for service_name,
                      service in self.services.items()}
         documents.update({'base': DescriptionDocument.create(config.PARAMETERS_DESCRIPTION)})
         return documents
-
 
 app_containers = Containers(config)

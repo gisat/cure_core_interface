@@ -3,6 +3,57 @@ from gdal import ogr, osr
 from ccsi.utils import ExtendedCRS
 
 
+def from_element_text(element) -> str:
+    """from xtree element extract text information"""
+    if element is None:
+        pass
+    try:
+        return element.text
+    except AttributeError:
+        return element[0].text
+
+
+
+def enclousure_from_text(element) -> dict:
+    """function solve the problem whne link enclousure or path is in tag text"""
+    try:
+        return {'href': element.text}
+    except AttributeError:
+        return {'href': element[0].text}
+
+def from_element_attributes(element):
+    atributes = []
+    if len(element) == 0:
+        return [{}]
+    else:
+        for element in element:
+            atributes.append({key: value for key, value in element.items()})
+        return atributes
+
+def from_gml_geometry(elements):
+    for element in elements:
+        geometry = ogr.CreateGeometryFromGML(etree.tostring(element).decode('utf-8'))
+        if geometry is None:
+            geometry = ogr.CreateGeometryFromGML(element.text)
+            entry = etree.fromstring(element.text.encode('utf-8'))
+        if geometry.IsValid():
+            if geometry.GetSpatialReference() is not None:
+                reference = geometry.GetSpatialReference().ExportToProj4()
+                crs = ExtendedCRS.from_proj4(reference)
+            else:
+                crs = ExtendedCRS.from_unknow(entry.attrib.get('srsName'))
+                if crs is None:
+                    crs = ExtendedCRS.from_unknow(find_element('@srsName', namespace, entry)[0].get('srsName'))
+                srs = osr.SpatialReference()
+                srs.ImportFromEPSG(crs.to_epsg())
+                geometry.AssignSpatialReference(srs)
+            output = {'json': {'geometry': geometry.ExportToJson(), 'epsg': crs.to_string()},
+                      'xml': {'geometry': geometry.ExportToGML(["NAMESPACE_DECL=YES"]), 'epsg': crs.to_string()}}
+            geometry = None
+        return output
+
+
+
 def find_element(tag, namespace, entry):
     prefix = namespace.get('prefix')
     ns = namespace.get('namespace')
@@ -50,28 +101,28 @@ def from_xml_text(tag, namespace, entry):
     return text
 
 
-def from_gml_geometry(tag, namespace, entry):
-    elements = find_element(tag, namespace, entry)
-    for element in elements:
-        geometry = ogr.CreateGeometryFromGML(etree.tostring(element).decode('utf-8'))
-        if geometry is None:
-            geometry = ogr.CreateGeometryFromGML(element.text)
-            entry = etree.fromstring(element.text.encode('utf-8'))
-        if geometry.IsValid():
-            if geometry.GetSpatialReference() is not None:
-                reference = geometry.GetSpatialReference().ExportToProj4()
-                crs = ExtendedCRS.from_proj4(reference)
-            else:
-                crs = ExtendedCRS.from_unknow(entry.attrib.get('srsName'))
-                if crs is None:
-                    crs = ExtendedCRS.from_unknow(find_element('@srsName', namespace, entry)[0].get('srsName'))
-                srs = osr.SpatialReference()
-                srs.ImportFromEPSG(crs.to_epsg())
-                geometry.AssignSpatialReference(srs)
-            output = {'json': {'geometry': geometry.ExportToJson(), 'epsg': crs.to_string()},
-                  'xml': {'geometry': geometry.ExportToGML(["NAMESPACE_DECL=YES"]), 'epsg': crs.to_string()}}
-            geometry = None
-        return output
+# def from_gml_geometry(tag, namespace, entry):
+#     elements = find_element(tag, namespace, entry)
+#     for element in elements:
+#         geometry = ogr.CreateGeometryFromGML(etree.tostring(element).decode('utf-8'))
+#         if geometry is None:
+#             geometry = ogr.CreateGeometryFromGML(element.text)
+#             entry = etree.fromstring(element.text.encode('utf-8'))
+#         if geometry.IsValid():
+#             if geometry.GetSpatialReference() is not None:
+#                 reference = geometry.GetSpatialReference().ExportToProj4()
+#                 crs = ExtendedCRS.from_proj4(reference)
+#             else:
+#                 crs = ExtendedCRS.from_unknow(entry.attrib.get('srsName'))
+#                 if crs is None:
+#                     crs = ExtendedCRS.from_unknow(find_element('@srsName', namespace, entry)[0].get('srsName'))
+#                 srs = osr.SpatialReference()
+#                 srs.ImportFromEPSG(crs.to_epsg())
+#                 geometry.AssignSpatialReference(srs)
+#             output = {'json': {'geometry': geometry.ExportToJson(), 'epsg': crs.to_string()},
+#                   'xml': {'geometry': geometry.ExportToGML(["NAMESPACE_DECL=YES"]), 'epsg': crs.to_string()}}
+#             geometry = None
+#         return output
 
 
 def from_gdal_geometry(feature):

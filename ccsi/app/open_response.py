@@ -1,4 +1,4 @@
-from ccsi.config import config
+from ccsi.config import XML_NAMESPACES
 from lxml.etree import Element, SubElement
 from datetime import datetime
 
@@ -11,11 +11,11 @@ def create_SubElement(parent, tag, attrib={}, text=None, nsmap=None, **_extra):
 
 class OpenSearchResponse:
 
-    def __init__(self, base_url, original_args, process_request, totalresults):
+    def __init__(self, base_url, original_args, process_request, total_results):
         self.base_url = base_url
         self.original_args = original_args
         self.process_request = process_request
-        self.totalresults = totalresults
+        self.totalresults = total_results
 
     @property
     def url(self):
@@ -53,8 +53,7 @@ class OpenSearchResponse:
 
     def nsmap(self):
         """return xml namespaces in for required by lxml"""
-        return {(item.get('prefix') if item.get('prefix') != '' else None): item.get('namespace').get('namespace')
-                for item in config.ENTRY_PARS.values()}
+        return {prefix: ns for namespace in XML_NAMESPACES.values() for prefix, ns in namespace.items()}
 
     def create_link_url(self, link_parameter):
         request = {k: v for k, v in self.process_request.items() if k not in ['startindex', 'page']}
@@ -62,9 +61,9 @@ class OpenSearchResponse:
         return self.encode(request)
 
     def crate_json_links(self):
-        self_link = {"rel": "self", "type": "application/json", "title": "self", "href": self.url},
+        self_link = {"rel": "self", "type": "application/json", "title": "self", "href": self.url}
         search_link = {"rel": "search", "type": "application/opensearchdescription+xml", "title":
-            "OpenSearch Description Document", "href": f"{self.base_url}/describe.xml"},
+            "OpenSearch Description Document", "href": f"{self.base_url}/describe.xml"}
         first_link = {"rel": "first", "type": "application/json",
                       "title": "first", "href": f"{self.base_url}&{self.create_link_url(self.first_page)}"}
         next_link = {"rel": "next", "type": "application/json",
@@ -113,3 +112,36 @@ class OpenSearchResponse:
             "query": self.original_args,
             "links": self.crate_json_links()}
         return properties
+
+
+class BaseResponse(OpenSearchResponse):
+
+    def crate_json_links(self):
+        self_link = {"rel": "self", "type": "application/json", "title": "self", "href": self.url}
+        search_link = {"rel": "search", "type": "application/opensearchdescription+xml", "title":
+            "OpenSearch Description Document", "href": f"{self.base_url}/describe.xml"}
+
+        return [self_link, search_link]
+
+
+    def atom_head(self):
+        feed = Element('feed', nsmap=self.nsmap())
+        title = create_SubElement(feed, 'title', text=f'Copernicus Core Service Interface search results for:'
+                                                      f'{self.encode(self.process_request, delimiter= "; ")}')
+        subtitle = create_SubElement(feed, 'subtitle', text=f'Displaying {self.totalresults} results')
+        updated = create_SubElement(feed, 'updated', text=datetime.now().isoformat())
+        author = create_SubElement(feed, 'author')
+        name = create_SubElement(author, 'name', text='Copernicus Core Service Interface')
+        id = create_SubElement(feed, 'id', text=self.url)
+        totalresults = create_SubElement(feed, 'totalResults', text=str(self.totalresults))
+        startindex = create_SubElement(feed, 'startIndex', text=str(self.startindex))
+        itemsperpage = create_SubElement(feed, 'itemsPerPage', text=str(self.maxrecords))
+        query = create_SubElement(feed, 'Query', attrib={'role': 'request',
+                                                         'searchTerms': self.encode(self.process_request)})
+        search_link = create_SubElement(feed, 'link', attrib={'rel': 'search',
+                                                              'type': 'application/opensearchdescription+xml',
+                                                              'href': f'{self.base_url}/description.xml'})
+        self_link = create_SubElement(feed, 'link', attrib={'rel': 'self', 'type': 'application/atom+xml',
+                                                            'href': self.url})
+
+        return feed

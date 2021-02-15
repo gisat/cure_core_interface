@@ -6,43 +6,32 @@ import copy
 class EntryText:
     """
     Standard entry parameter to harmonize inputs from services. Input value serialized as text parameter.
-    Data passed in text, attrib during th initialization are used as defaults
+    Data passed in text, attrib during th initialization are used as defaults"""
 
-    :param name: unique name o parameter, used for mapping
-    :type name: str
-    :param tag: tag name of xml tag or json tag property
-    :type tag: str
-    :param attrib: attribute data, default = {}
-    :type: attrib: dict
-    :param text: parameter text, serialized as xml text. In json representation as json value, default = none
-    :type text: str
-    :param namespace: namespace of attribute, used in xml serialization. In form {'prefix': 'namespace}
-    :type namespace: dict
-    :param rule: additional rule func corrigate input, default = None
-    """
-
-    def __init__(self, name, tag, namespace, attrib={}, text=None):
-        self.name = name
+    def __init__(self, tag: str, namespace: dict,  attrib={}, text=None):
+        """
+        :param tag: tag name
+        :param namespace: namespace definiton
+        :param attrib: tag attribute value
+        :param text: tag text value
+        :param parser: (optional) parser setting
+        """
         self.tag = tag
+        self.namespace = namespace
         self.attrib = attrib
         self.text = text
-        self.namespace = namespace
 
     @classmethod
-    def create(cls, name, tag, namespace, attrib={}, text=None, **ignore):
-        if namespace['prefix'] == '':
-            ns = {None: namespace['namespace']}
-        else:
-            ns = {namespace['prefix']: namespace['namespace']}
-        return cls(name=name, tag=tag, attrib=attrib, text=text, namespace=ns)
+    def create(cls, tag, namespace, attrib=None, text=None, **ignore):
+        return cls(tag, namespace, attrib, text)
 
     def set_value(self, value):
         self.text = value
 
     def to_json(self):
         if self.attrib is {}:
-            return {self.name: self.text}
-        return {self.name: self.text,
+            return {self.tag: self.text}
+        return {self.tag: self.text,
                 'properties': self.attrib}
 
     def to_xml(self):
@@ -63,7 +52,6 @@ class EntryAtribute(EntryText):
         else:
             self.attrib.update(value)
 
-
 class EntryAtributeMany(EntryText):
     """
     Standard entry parameter to harmonize inputs from services. Derived from EntryText
@@ -74,7 +62,10 @@ class EntryAtributeMany(EntryText):
         self.attrib = value
 
     def to_xml(self):
-        return [etree.Element(self.name, nsmap=self.namespace, **atribute_set) for atribute_set in self.attrib]
+        return [etree.Element(self.tag, nsmap=self.namespace, **atribute_set) for atribute_set in self.attrib]
+
+    def to_json(self):
+        return {self.tag: [atr for atr in self.attrib]}
 
 
 class EntryGeometry(EntryText):
@@ -84,13 +75,13 @@ class EntryGeometry(EntryText):
     Serialized as as gml or geojson
     Data passed in text, attrib during th initialization are used as defaults"""
 
-    def __init__(self, name, tag, namespace):
+    def __init__(self, tag, namespace):
         self.value = None
-        super().__init__(name, tag, namespace)
+        super().__init__(tag, namespace)
 
     @classmethod
-    def create(cls, name, tag, namespace, **ignore):
-        return cls(name, tag, namespace)
+    def create(cls, tag, namespace, **ignore):
+        return cls(tag, namespace)
 
     def set_value(self, value):
         self.value = value
@@ -105,18 +96,16 @@ class EntryGeometry(EntryText):
 
 
 class Entry:
-    PARAMETR_TYPE = {'text': EntryText,
-                     'attribute': EntryAtribute,
-                     'attribute_many': EntryAtributeMany,
-                     'geometry': EntryGeometry}
 
-    def __init__(self, properties: dict):
-        for name, property in properties.items():
-            setattr(self, name, self.PARAMETR_TYPE[property.get('type')].create(name, **property))
+    def __init__(self):
+        pass
 
-    @classmethod
-    def create(cls, properties):
-        return cls(properties)
+    @property
+    def parameters(self) -> dict:
+        """
+        :return: dictionary of entry attributes
+        """
+        return self.__dict__
 
     def set_attribute(self, atribute, value):
         self.__dict__[atribute].set_value(value)
@@ -133,6 +122,8 @@ class Entry:
         for attr in self.__dict__.keys():
             if attr != 'geometry':
                 properties.update(getattr(self, attr).to_json())
+
+        # if geometry is part of entry
         if 'geometry' in self.__dict__.keys():
             entry = getattr(self, 'geometry').to_json()
             entry.properties.update(properties)
@@ -142,6 +133,30 @@ class Entry:
 
     def copy(self):
         return copy.deepcopy(self)
+
+
+class EntryFactory:
+    """
+    class to built Entry container
+    """
+    ENTRY_PARAMETR_TYPE = {'text': EntryText,
+                           'attribute': EntryAtribute,
+                           'attribute_many': EntryAtributeMany,
+                           'geometry': EntryGeometry}
+
+    def create(self, settings: dict) -> Entry:
+        # initialization of Entry container
+        entry = Entry()
+        # setting of entry
+        for name, setting in settings.items():
+            self.set_entry_parameter(entry, name, **setting)
+        return entry
+
+    def set_entry_parameter(self, entry, name, typ, tag, **ignore):
+        setattr(entry, name, self.ENTRY_PARAMETR_TYPE[typ].create(**tag))
+
+entry_factory = EntryFactory()
+
 
 
 

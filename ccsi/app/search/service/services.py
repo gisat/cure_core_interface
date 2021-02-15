@@ -71,3 +71,4 @@ class Service:
                 self._parameters.parameter(mapped_name)
             except AttributeError:
                 raise AttributeError(f'Parameter name {mapped_name} did not find in service {self.service_name} parameters')
+

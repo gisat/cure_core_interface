@@ -7,7 +7,6 @@ from ccsi.containers import app_containers
 from ccsi.app.api_schema import api_schemas
 from ccsi.config import config
 
-
 # restful api
 search_api = Api()
 # apispec
@@ -23,14 +22,16 @@ class Endpoint:
                         process_args: working query parameters, mutable
                         base_url: incoming url
         """
-        original_args, process_args, base_url = request.args.to_dict(), request.args.to_dict(), request.url
-        if self.catalogue:
-            process_args.update({'cataloque': self.catalogue})
+        original_args, process_args, base_url, host_url = request.args.to_dict(), request.args.to_dict(), request.url, \
+                                                          request.host_url
+        if self.resource:
+            process_args.update({'resource': self.resource})
         if self.collection:
             process_args.update({'collection': self.collection})
         return {'original_args': original_args,
                 'process_args': process_args,
-                'base_url': base_url}
+                'base_url': base_url,
+                'host_url': host_url}
 
 
 class AtomEndpoint(Endpoint):
@@ -47,7 +48,10 @@ class AtomEndpoint(Endpoint):
         if query.valid:
             query.send_request()
         if query.valid:
+            if self.service_name == 'base':
+                return Response(query.base_to_xml(), mimetype='application/xml', content_type='text/xml; charset=utf-8')
             return Response(query.to_xml(), mimetype='application/xml', content_type='text/xml; charset=utf-8')
+
 
 
 class JsonEndpoint(Endpoint):
@@ -64,7 +68,10 @@ class JsonEndpoint(Endpoint):
         if query.valid:
             query.send_request()
         if query.valid:
+            if self.service_name == 'base':
+                return Response(query.base_to_json(), mimetype='application/json', content_type='application/json; charset=utf-8')
             return Response(query.to_json(), mimetype='application/json', content_type='application/json; charset=utf-8')
+
 
 
 class AtomDescription:
@@ -111,10 +118,10 @@ class DescriptionFactory:
 class DataEndpointFactory:
 
     @staticmethod
-    def create(service_name, format,  collection=None, catalogue=None, **ignore):
+    def create(service_name, format,  collection=None, resource=None, **ignore):
         cls_props = {'service_name': service_name,
                      'collection': collection,
-                     'catalogue': catalogue}
+                     'resource': resource}
         if format == 'json':
             cls_name = f'json{service_name}'.lower()
             return type(cls_name, (MethodResource, Resource, JsonEndpoint), cls_props)

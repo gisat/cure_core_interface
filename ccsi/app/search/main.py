@@ -1,25 +1,27 @@
 from ccsi.errors.errors import Error
-from ccsi.app.open_response import OpenSearchResponse
+from ccsi.config import config
+from ccsi.app.open_response import OpenSearchResponse, BaseResponse
 from lxml import etree
-from copy import deepcopy
+from copy import copy
 from geojson import FeatureCollection, dumps
 
 
 class Query:
 
-    def __init__(self,  original_args, process_args, base_url, services):
+    def __init__(self,  original_args, process_args, base_url, host_url, services):
         self.original_args = original_args
         self.process_args = self._lower(process_args)
         self.base_url = base_url
+        self.host_url = host_url
         self.services = services
         self.error = {}
         self.responses = {}
-        self.entries = []
+        self.request_output = {}
 
     @classmethod
-    def create(cls,  original_args, process_args, base_url, services):
+    def create(cls,  original_args, process_args, base_url, host_url, services):
         """create from flask request variable"""
-        return cls(original_args, process_args, base_url, services)
+        return cls(original_args, process_args, base_url, host_url, services)
 
     @property
     def valid(self):
@@ -27,18 +29,21 @@ class Query:
             return True
         return False
 
+    def update(self, service_name, service_output):
+        self.request_output.update({service_name: service_output})
+
     @property
-    def totalresults(self):
-        return len(self.entries)
+    def entries(self):
+        return [entry for output in self.request_output.values() for entry in output.entries]
+
+    @property
+    def total_results(self):
+        return sum([output.total_results for output in self.request_output.values()])
 
     def send_request(self):
         if self.valid:
             for service in self.services:
-                output = service.send_request(self.process_args)
-                if isinstance(output, dict):
-                    self.error.update(output)
-                else:
-                    self.entries += output
+                self.update(service.service_name, service.send_request(self.process_args))
 
     @staticmethod
     def _lower(dictionary: dict):
@@ -46,16 +51,48 @@ class Query:
         return {key.lower(): value.lower() for key, value in dictionary.items()}
 
     def to_xml(self):
-        response = OpenSearchResponse(self.base_url, self.original_args, self.process_args, self.totalresults)
+        response = OpenSearchResponse(self.base_url, self.original_args, self.process_args, self.total_results)
         feed = response.atom_head()
         for entry in self.entries:
             feed.append(entry.to_xml())
         return etree.tostring(feed, pretty_print=True).decode("utf-8")
 
     def to_json(self):
-        response = OpenSearchResponse(self.base_url, self.original_args, self.process_args, self.totalresults)
+        response = OpenSearchResponse(self.base_url, self.original_args, self.process_args, self.total_results)
         head = response.json_head()
         return dumps(FeatureCollection(features=[entry.to_json() for entry in self.entries], properties=head), indent=4)
+
+    def base_to_json(self):
+        response = BaseResponse(self.base_url, self.original_args, self.process_args, self.total_results)
+        head = response.json_head()
+        return dumps(FeatureCollection(features=self.service_total_results(), properties=head), indent=4)
+
+    def base_to_xml(self):
+        response = BaseResponse(self.base_url, self.original_args, self.process_args, self.total_results)
+        feed = response.atom_head()
+        for service_name, output in self.request_output.items():
+            resource = etree.SubElement(feed, 'resource', nsmap={'ccsi': 'http://spec/ccsi/parameters'})
+            name = etree.SubElement(resource, 'name', nsmap={'ccsi': 'http://spec/ccsi/parameters'})
+            name.text = config.SHORT_NAME.get(service_name)
+            etree.SubElement(resource, 'link', attrib={"rel": "search",
+                                                      "type": "application/opensearchdescription+xml",
+                                                      "href": self.data_endpoint_url(service_name, 'atom')},
+                             nsmap={'ccsi': 'http://spec/ccsi/parameters'})
+        return etree.tostring(feed, pretty_print=True).decode("utf-8")
+
+    def service_total_results(self):
+        total_results = {}
+        for service_name, output in self.request_output.items():
+            total_results.update({service_name: {'name': config.SHORT_NAME.get(service_name),
+                                                 'total_results': output.total_results,
+                                                 'url': self.data_endpoint_url(service_name, 'json')}})
+        return total_results
+
+    def data_endpoint_url(self, service_name, form):
+        return f'{self.host_url}/{service_name}/{form}/search?'.lower() + '&'.join([f'{k}={v}' for k, v in
+                                                                                      self.original_args.items()])
+
+
 
 
 class Register:
@@ -80,7 +117,7 @@ class Register:
         return self.default_parameters_register.get(parameter_name)
 
     def get_service_registr(self):
-        return deepcopy(self.services_register)
+        return copy(self.services_register)
 
 
 class RequestProcessor:
@@ -97,8 +134,8 @@ class RequestProcessor:
     def register(self):
         return self._register
 
-    def build_query(self,  original_args, process_args, base_url) -> Query:
-        query = Query.create(original_args, process_args, base_url, self.register.get_service_registr())
+    def build_query(self,  original_args, process_args, base_url, host_url) -> Query:
+        query = Query.create(original_args, process_args, base_url, host_url, self.register.get_service_registr())
         for process in self.PROCESSES:
             getattr(self, process)(query)
             if query.valid is False:
@@ -147,5 +184,36 @@ class RequestProcessor:
         return query
 
 
+class ServiceOutput:
 
+    def __init__(self, service_name):
+        self.service_name = service_name
+        self.entries = []
+        self._total_results = None
+        self._start_index = None
+        self._item_per_page = None
+
+    @property
+    def total_results(self):
+        return self._total_results
+
+    @total_results.setter
+    def total_results(self, value):
+        self._total_results = value
+
+    @property
+    def start_index(self):
+        return self._start_index
+
+    @start_index.setter
+    def start_index(self, value):
+        self._start_index = value
+
+    @property
+    def item_per_page(self):
+        return self._item_per_page
+
+    @item_per_page.setter
+    def item_per_page(self, value):
+        self._item_per_page = value
 
